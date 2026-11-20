@@ -1,5 +1,6 @@
 #include "parseargs.h"
 #include <stdlib.h>
+#include <string.h>
 
 /* ASCII whitespace only; bytes >= 0x80 are never whitespace. */
 static int is_ws(char c)
@@ -18,7 +19,7 @@ static int is_escapable(char c)
 }
 
 struct parser {
-    char *s;
+    const char *s;
     size_t len;
     int reading;
     char start_char;
@@ -37,18 +38,45 @@ static int has_valid_backslash(const struct parser *p, size_t i)
     return (int)(n % 2 == 0);
 }
 
-static void emit(struct parser *p, size_t start, size_t end)
+static void unescape(char *t)
 {
+    char *r = t;
+    char *w = t;
+
+    while (*r != '\0') {
+        if (r[0] == '\\' && is_escapable(r[1])) {
+            r++;
+        }
+        *w++ = *r++;
+    }
+    *w = '\0';
+}
+
+static int emit(struct parser *p, size_t start, size_t end)
+{
+    size_t n;
+    char *copy;
+
     p->reading = 0;
     p->start_char = 0;
     if (p->argv != NULL) {
-        p->s[end] = '\0';
-        p->argv[p->argc] = p->s + start;
+        n = end - start;
+        copy = (char *)malloc(n + 1);
+        if (copy == NULL) {
+            return -1;
+        }
+        if (n > 0) {
+            memcpy(copy, p->s + start, n);
+        }
+        copy[n] = '\0';
+        unescape(copy);
+        p->argv[p->argc] = copy;
     }
     p->argc++;
+    return 0;
 }
 
-static int run(char *buf, char **argv)
+static int run(const char *buf, char **argv)
 {
     struct parser p;
     size_t i;
@@ -90,7 +118,9 @@ static int run(char *buf, char **argv)
             p.start_char = ' ';
             p.start_index = i;
             if (i == p.len - 1) {
-                emit(&p, p.start_index, p.len);
+                if (emit(&p, p.start_index, p.len) != 0) {
+                    return PARSEARGS_ERR_OUT_OF_MEMORY;
+                }
             }
             continue;
         }
@@ -110,17 +140,23 @@ static int run(char *buf, char **argv)
             if (!has_valid_backslash(&p, i)) {
                 return PARSEARGS_ERR_INVALID_SYNTAX;
             }
-            emit(&p, p.start_index, i);
+            if (emit(&p, p.start_index, i) != 0) {
+                return PARSEARGS_ERR_OUT_OF_MEMORY;
+            }
             continue;
         }
 
         if (c == p.start_char && is_special(p.start_char) && has_valid_backslash(&p, i)) {
-            emit(&p, p.start_index + 1, i);
+            if (emit(&p, p.start_index + 1, i) != 0) {
+                return PARSEARGS_ERR_OUT_OF_MEMORY;
+            }
             continue;
         }
 
         if (i == p.len - 1 && p.start_char == ' ') {
-            emit(&p, p.start_index, p.len);
+            if (emit(&p, p.start_index, p.len) != 0) {
+                return PARSEARGS_ERR_OUT_OF_MEMORY;
+            }
             continue;
         }
     }
@@ -132,25 +168,24 @@ static int run(char *buf, char **argv)
     return p.argc;
 }
 
-static void unescape(char *t)
+void parseargs_free(char **argv)
 {
-    char *r = t;
-    char *w = t;
+    char **p;
 
-    while (*r != '\0') {
-        if (r[0] == '\\' && is_escapable(r[1])) {
-            r++;
-        }
-        *w++ = *r++;
+    if (argv == NULL) {
+        return;
     }
-    *w = '\0';
+    for (p = argv; *p != NULL; p++) {
+        free(*p);
+    }
+    free(argv);
 }
 
-int parseargs(char *buf, char ***argv)
+int parseargs_parse(const char *buf, char ***argv)
 {
     char **arr;
     int n;
-    int i;
+    int r;
 
     *argv = NULL;
     n = run(buf, NULL);
@@ -158,14 +193,15 @@ int parseargs(char *buf, char ***argv)
         return n;
     }
 
-    arr = (char **)malloc((size_t)n * sizeof *arr);
+    arr = (char **)calloc((size_t)n + 1, sizeof *arr);
     if (arr == NULL) {
         return PARSEARGS_ERR_OUT_OF_MEMORY;
     }
 
-    run(buf, arr);
-    for (i = 0; i < n; i++) {
-        unescape(arr[i]);
+    r = run(buf, arr);
+    if (r < 0) {
+        parseargs_free(arr);
+        return r;
     }
 
     *argv = arr;

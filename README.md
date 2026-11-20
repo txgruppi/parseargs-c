@@ -7,13 +7,12 @@ Splits a command line into arguments with quotes and backslash escapes. C99, dep
 ```c
 #include "parseargs.h"
 #include <stdio.h>
-#include <stdlib.h>
 
 int main(void)
 {
-    char buf[] = "set name \"Put your name here\"";
+    const char *line = "set name \"Put your name here\"";
     char **argv;
-    int argc = parseargs(buf, &argv);
+    int argc = parseargs_parse(line, &argv);
 
     if (argc < 0) {
         fprintf(stderr, "parse error: %d\n", argc);
@@ -23,7 +22,7 @@ int main(void)
     for (int i = 0; i < argc; i++) {
         puts(argv[i]);
     }
-    free(argv);
+    parseargs_free(argv);
     return 0;
 }
 ```
@@ -35,13 +34,13 @@ int main(void)
 | `PARSEARGS_ERR_INVALID_ARGUMENT` (-1) | A quote appeared inside an unquoted word (e.g. `my"foo`). |
 | `PARSEARGS_ERR_INVALID_SYNTAX` (-2) | A backslash before whitespace in an unquoted word (e.g. `my\ foo`). |
 | `PARSEARGS_ERR_UNEXPECTED_END_OF_INPUT` (-3) | An unclosed quoted string. |
-| `PARSEARGS_ERR_OUT_OF_MEMORY` (-4) | `malloc` failed when building the pointer array. |
+| `PARSEARGS_ERR_OUT_OF_MEMORY` (-4) | `malloc` failed when building arguments. |
 
 ## Memory and ownership
 
-- The caller is responsible for calling `free(argv)`.
-- The caller is responsible for keeping `buf` alive and unchanged while `argv` is in use, because each `argv[i]` points into `buf` (no string copies).
-- `buf` is modified in place: tokens are NUL-terminated and escapes are removed. Use a writable buffer (not a string literal or `F()` / PROGMEM string). On error, `buf` is left unchanged and `argv` is `NULL`.
+- The caller calls `parseargs_free(argv)`. `argv` ends with a `NULL` entry, as `main`'s does.
+- `buf` is never modified and can be freed or reused right after the call.
+- On AVR, `F()` and `PROGMEM` strings still have to be copied to RAM first, because the parser reads with normal pointers.
 
 ## Behavior
 
