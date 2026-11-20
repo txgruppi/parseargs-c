@@ -1,6 +1,6 @@
 # parseargs-c
 
-A C99 port of [parseargs-go](https://github.com/txgruppi/parseargs-go) that splits a command line into arguments with quotes and backslash escapes. It depends only on `malloc`/`free`, installs as an Arduino library, and compiles for AVR.
+Splits a command line into arguments with quotes and backslash escapes. C99, depends only on `malloc`/`free`, installs as an Arduino library, and compiles for AVR.
 
 ## Usage
 
@@ -43,10 +43,10 @@ int main(void)
 - The caller is responsible for keeping `buf` alive and unchanged while `argv` is in use, because each `argv[i]` points into `buf` (no string copies).
 - `buf` is modified in place: tokens are NUL-terminated and escapes are removed. Use a writable buffer (not a string literal or `F()` / PROGMEM string). On error, `buf` is left unchanged and `argv` is `NULL`.
 
-## Differences from parseargs-go
+## Behavior
 
-- Empty or whitespace-only input returns `0` arguments instead of an error.
-- Only ASCII whitespace is trimmed at the edges; Unicode spaces (e.g. U+00A0) are not treated as trim characters.
+- Empty or whitespace-only input returns `0` arguments.
+- Whitespace is ASCII only (` `, `\t`, `\n`, `\v`, `\f`, `\r`); bytes `0x80` and above are ordinary token bytes.
 
 ## Tests
 

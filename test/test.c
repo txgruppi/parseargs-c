@@ -71,6 +71,12 @@ int main(void)
     ok(" x ", 1, (const char *[]){"x"});
     ok("a", 1, (const char *[]){"a"});
 
+    ok("a\vb", 2, (const char *[]){"a", "b"});
+    ok("\va\v", 1, (const char *[]){"a"});
+    ok("'a\\\vb'", 1, (const char *[]){"a\vb"});
+    err("a\\\vb", PARSEARGS_ERR_INVALID_SYNTAX);
+    ok("\xC2\xA0" "a", 1, (const char *[]){"\xC2\xA0" "a"});
+
     puts("ok");
     return 0;
 }

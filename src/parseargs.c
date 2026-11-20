@@ -1,17 +1,10 @@
 #include "parseargs.h"
 #include <stdlib.h>
 
-/* Matches Go RE2 \s, which is ASCII only. */
+/* ASCII whitespace only; bytes >= 0x80 are never whitespace. */
 static int is_ws(char c)
 {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r';
-}
-
-/* strings.TrimSpace also strips \v.
- * ponytail: ASCII only; Go also trims Unicode spaces such as U+00A0 at the edges. Port unicode.IsSpace if that matters. */
-static int is_trim(char c)
-{
-    return is_ws(c) || c == '\v';
+    return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r';
 }
 
 static int is_special(char c)
@@ -68,7 +61,7 @@ static int run(char *buf, char **argv)
     p.start_index = 0;
     p.s = buf;
 
-    while (p.s[0] != '\0' && is_trim(p.s[0])) {
+    while (p.s[0] != '\0' && is_ws(p.s[0])) {
         p.s++;
     }
 
@@ -76,7 +69,7 @@ static int run(char *buf, char **argv)
     while (p.s[trim_end] != '\0') {
         trim_end++;
     }
-    while (trim_end > 0 && is_trim(p.s[trim_end - 1])) {
+    while (trim_end > 0 && is_ws(p.s[trim_end - 1])) {
         trim_end--;
     }
     p.len = trim_end;
