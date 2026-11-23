@@ -5,10 +5,10 @@
 extern "C" {
 #endif
 
-#define PARSEARGS_ERR_INVALID_ARGUMENT         (-1)
-#define PARSEARGS_ERR_INVALID_SYNTAX           (-2)
-#define PARSEARGS_ERR_UNEXPECTED_END_OF_INPUT  (-3)
-#define PARSEARGS_ERR_OUT_OF_MEMORY            (-4)
+#define PARSEARGS_ERR_INVALID_ARGUMENT (-1)
+#define PARSEARGS_ERR_INVALID_SYNTAX (-2)
+#define PARSEARGS_ERR_UNEXPECTED_END_OF_INPUT (-3)
+#define PARSEARGS_ERR_OUT_OF_MEMORY (-4)
 
 /* Splits buf into arguments. Understands single and double quoted strings and
  * backslash-escaped quotes.
@@ -19,8 +19,10 @@ extern "C" {
  * buf is never modified.
  *
  * On success with argc > 0, *argv is a NULL-terminated array (argv[argc] is
- * NULL). Each argv[i] is its own malloc'd, NUL-terminated, unescaped string.
- * With argc == 0, or on error, *argv is NULL.
+ * NULL) pointing into one allocation: pointer slots followed by the argument
+ * strings. Each argv[i] is a NUL-terminated, unescaped string in that block.
+ * Do not free or realloc individual argv[i]; they are invalid after
+ * parseargs_free. With argc == 0, or on error, *argv is NULL.
  *
  * The caller must call parseargs_free(*argv) when done. parseargs_free(NULL)
  * is a no-op. */
